@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor Financeiro Pessoal</title>
+    <!-- Incluindo Tailwind CSS para um design moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Incluindo Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Estilos personalizados para complementar o Tailwind */
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 1rem; /* 16px */
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            padding: 1.5rem; /* 24px */
+        }
+        .page {
+            display: none; /* Todas as páginas começam escondidas */
+        }
+        .page.active {
+            display: block; /* A página ativa é mostrada */
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Indicador de Ligação -->
+    <div id="connection-status" class="p-2 text-center text-white font-semibold transition-colors sticky top-0 z-50">
+        A ligar...
+    </div>
+
+    <main id="app-container" class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- ===== PÁGINA: DASHBOARD ===== -->
+        <div id="page-dashboard" class="page active">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">Dashboard</h1>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <!-- ... KPIs ... -->
+                <div class="card flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-full mr-4">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 10v-1m0 0c-1.657 0-3-.895-3-2s1.343-2 3-2 3-.895 3-2-1.343-2-3-2m0 0c-1.11 0-2.08-.402-2.599-1M12 4a8 8 0 100 16 8 8 0 000-16z"></path></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-gray-500 uppercase">Saldo do Mês</p>
+                        <p id="kpi-saldo" class="text-2xl font-bold text-gray-800 mt-1">A carregar...</p>
+                    </div>
+                </div>
+                <div class="card flex items-center">
+                    <div class="p-3 bg-green-100 rounded-full mr-4">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-gray-500 uppercase">Total Investido</p>
+                        <p id="kpi-investimentos" class="text-2xl font-bold text-gray-800 mt-1">A carregar...</p>
+                    </div>
+                </div>
+                <div class="card flex items-center">
+                    <div class="p-3 bg-red-100 rounded-full mr-4">
+                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-gray-500 uppercase">Dívidas Pendentes</p>
+                        <p id="kpi-dividas" class="text-2xl font-bold text-gray-800 mt-1">A carregar...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                <div class="lg:col-span-3">
+                    <div class="card h-full">
+                        <h2 class="text-lg font-bold text-gray-800 mb-4">Despesas do Mês</h2>
+                        <div class="relative h-80">
+                            <canvas id="despesasChart"></canvas>
+                            <div id="chart-no-data" class="absolute inset-0 flex items-center justify-center text-gray-500 hidden">
+                                Nenhuma despesa registada este mês.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-2">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4 px-2">Ações Rápidas</h2>
+                    <div class="space-y-3">
+                        <button onclick="showPage('page-transacao')" class="w-full text-left flex items-center card !p-4 hover:bg-gray-50 transition-colors">
+                            <span class="text-2xl mr-4">💸</span>
+                            <span class="font-bold text-gray-700">Lançar Transação</span>
+                        </button>
+                        <button onclick="showPage('page-extrato')" class="w-full text-left flex items-center card !p-4 hover:bg-gray-50 transition-colors">
+                            <span class="text-2xl mr-4">📋</span>
+                            <span class="font-bold text-gray-700">Ver Extrato</span>
+                        </button>
+                        <button onclick="showPage('page-dividas')" class="w-full text-left flex items-center card !p-4 hover:bg-gray-50 transition-colors">
+                            <span class="text-2xl mr-4">🧾</span>
+                            <span class="font-bold text-gray-700">Gerir Dívidas</span>
+                        </button>
+                        <button onclick="showPage('page-investimentos')" class="w-full text-left flex items-center card !p-4 hover:bg-gray-50 transition-colors">
+                            <span class="text-2xl mr-4">📈</span>
+                            <span class="font-bold text-gray-700">Gerir Investimentos</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== PÁGINA: ADICIONAR TRANSAÇÃO ===== -->
+        <div id="page-transacao" class="page max-w-lg mx-auto">
+             <!-- ... Formulário de Transação ... -->
+             <h1 class="text-3xl font-bold text-gray-800 mb-6">Nova Transação</h1>
+            <div class="card">
+                <form id="form-transacao" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="w-full">
+                            <input type="radio" name="tipo" value="Receita" class="sr-only peer" onchange="handleTipoChange()">
+                            <div class="p-3 text-center rounded-lg border-2 border-gray-200 peer-checked:border-blue-500 peer-checked:text-blue-600 cursor-pointer">Receita</div>
+                        </label>
+                        <label class="w-full">
+                            <input type="radio" name="tipo" value="Despesa" class="sr-only peer" onchange="handleTipoChange()" checked>
+                            <div class="p-3 text-center rounded-lg border-2 border-gray-200 peer-checked:border-blue-500 peer-checked:text-blue-600 cursor-pointer">Despesa</div>
+                        </label>
+                    </div>
+                    <div>
+                        <label for="descricao" class="block text-sm font-medium text-gray-700">Descrição</label>
+                        <input type="text" id="descricao" name="descricao" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="valor" class="block text-sm font-medium text-gray-700">Valor (R$)</label>
+                        <input type="text" id="valor" name="valor" inputmode="decimal" required placeholder="150,50" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="categoria" class="block text-sm font-medium text-gray-700">Categoria</label>
+                        <select id="categoria" name="categoria" required class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"></select>
+                    </div>
+                    <div id="vencimento-container" class="hidden">
+                        <label for="vencimento" class="block text-sm font-medium text-gray-700">Data de Vencimento</label>
+                        <input type="date" id="vencimento" name="vencimento" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex items-center gap-4 pt-4">
+                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors">Salvar</button>
+                        <button type="button" onclick="showPage('page-dashboard')" class="w-full bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors">Voltar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ===== PÁGINA: EXTRATO DE TRANSAÇÕES ===== -->
+        <div id="page-extrato" class="page">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800">Extrato de Transações</h1>
+                <button onclick="showPage('page-dashboard')" class="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors">Voltar</button>
+            </div>
+
+            <!-- Filtros do Extrato -->
+            <div class="mb-4 flex space-x-2" id="extrato-filtros">
+                <button onclick="fetchExtrato('Todos')" class="extrato-filtro-btn bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg">Todos</button>
+                <button onclick="fetchExtrato('Receita')" class="extrato-filtro-btn bg-white text-gray-700 font-semibold py-2 px-4 rounded-lg border">Receitas</button>
+                <button onclick="fetchExtrato('Despesa')" class="extrato-filtro-btn bg-white text-gray-700 font-semibold py-2 px-4 rounded-lg border">Despesas</button>
+            </div>
+
+            <div class="card">
+                <div id="extrato-list" class="table-responsive">
+                    <!-- A tabela do extrato será renderizada aqui -->
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ===== PÁGINA: GERIR DÍVIDAS ===== -->
+        <div id="page-dividas" class="page">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800">Gerir Dívidas</h1>
+                <button onclick="showPage('page-dashboard')" class="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors">Voltar</button>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 card">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">Minhas Dívidas</h2>
+                    <div id="dividas-list" class="table-responsive"></div>
+                </div>
+                <div class="card">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">Nova Dívida</h2>
+                    <form id="form-divida" class="space-y-4">
+                        <div>
+                            <label for="divida-descricao" class="block text-sm font-medium text-gray-700">Descrição</label>
+                            <input type="text" id="divida-descricao" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        <div>
+                            <label for="divida-valor" class="block text-sm font-medium text-gray-700">Valor Total (R$)</label>
+                            <input type="text" id="divida-valor" inputmode="decimal" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700">Adicionar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== PÁGINA: GERIR INVESTIMENTOS ===== -->
+        <div id="page-investimentos" class="page">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800">Gerir Investimentos</h1>
+                <button onclick="showPage('page-dashboard')" class="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors">Voltar</button>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 card">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">Meus Investimentos</h2>
+                    <div id="investimentos-list" class="table-responsive"></div>
+                </div>
+                <div class="card">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">Novo Investimento</h2>
+                    <form id="form-investimento" class="space-y-4">
+                        <div>
+                            <label for="invest-ativo" class="block text-sm font-medium text-gray-700">Ativo</label>
+                            <input type="text" id="invest-ativo" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        <div>
+                            <label for="invest-valor" class="block text-sm font-medium text-gray-700">Valor Atual (R$)</label>
+                            <input type="text" id="invest-valor" inputmode="decimal" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700">Adicionar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:5000';
+        let despesasChartInstance = null;
+        const statusDiv = document.getElementById('connection-status');
+
+        function formatCurrency(value) {
+            return parseFloat(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+        
+        // --- Lógica de Ligação e Navegação ---
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            if (pageId === 'page-dashboard') fetchDashboardData();
+            if (pageId === 'page-dividas') fetchDividas();
+            if (pageId === 'page-investimentos') fetchInvestimentos();
+            if (pageId === 'page-extrato') fetchExtrato('Todos'); // Inicia com filtro "Todos"
+        }
+
+        // --- Lógica do Dashboard ---
+        async function fetchDashboardData() { /* ... */ }
+        function renderChart(chartData) { /* ... */ }
+
+        // --- Lógica de Transações (Formulário) ---
+        function handleTipoChange() { /* ... */ }
+        async function updateCategorias() { /* ... */ }
+        document.getElementById('form-transacao').addEventListener('submit', async function(event) { /* ... */ });
+        
+        // --- Lógica do Extrato ---
+        async function fetchExtrato(filtro = 'Todos') {
+            // Estilo do botão ativo
+            const buttons = document.querySelectorAll('#extrato-filtros .extrato-filtro-btn');
+            buttons.forEach(btn => {
+                if (btn.textContent.includes(filtro)) {
+                    btn.classList.add('bg-blue-600', 'text-white');
+                    btn.classList.remove('bg-white', 'text-gray-700', 'border');
+                } else {
+                    btn.classList.remove('bg-blue-600', 'text-white');
+                    btn.classList.add('bg-white', 'text-gray-700', 'border');
+                }
+            });
+            
+            let url = `${API_BASE_URL}/api/transacoes`;
+            if (filtro === 'Receita' || filtro === 'Despesa') {
+                url += `?tipo=${filtro}`;
+            }
+
+            try {
+                const response = await fetch(url);
+                const transacoes = await response.json();
+                const listDiv = document.getElementById('extrato-list');
+
+                if (transacoes.length === 0) {
+                    listDiv.innerHTML = '<p class="text-gray-500">Nenhuma transação encontrada para este filtro.</p>';
+                    return;
+                }
+
+                let table = `<table class="min-w-full bg-white text-sm">
+                    <thead>
+                        <tr class="text-left">
+                            <th class="py-2 px-4 border-b">Data</th>
+                            <th class="py-2 px-4 border-b">Descrição</th>
+                            <th class="py-2 px-4 border-b">Categoria</th>
+                            <th class="py-2 px-4 border-b text-right">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+                transacoes.forEach(t => {
+                    const [id, data, descricao, valor, tipo, categoria] = t;
+                    const valorFormatado = formatCurrency(valor);
+                    const corValor = tipo === 'Receita' ? 'text-green-600' : 'text-red-600';
+                    const [ano, mes, dia] = data.split('-');
+                    const dataFormatada = `${dia}/${mes}/${ano}`;
+
+                    table += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="py-2 px-4 border-b">${dataFormatada}</td>
+                            <td class="py-2 px-4 border-b">${descricao}</td>
+                            <td class="py-2 px-4 border-b text-gray-600">${categoria || 'N/A'}</td>
+                            <td class="py-2 px-4 border-b text-right font-semibold ${corValor}">${valorFormatado}</td>
+                        </tr>`;
+                });
+
+                table += '</tbody></table>';
+                listDiv.innerHTML = table;
+
+            } catch (e) {
+                console.error("Erro ao buscar extrato:", e);
+                document.getElementById('extrato-list').innerHTML = '<p class="text-red-500">Erro ao carregar o extrato.</p>';
+            }
+        }
+
+        // --- Lógica de Dívidas ---
+        async function fetchDividas() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/dividas`);
+                const dividas = await response.json();
+                const listDiv = document.getElementById('dividas-list');
+                if (dividas.length === 0) {
+                    listDiv.innerHTML = '<p class="text-gray-500">Nenhuma dívida encontrada.</p>';
+                    return;
+                }
+                let table = `<table class="min-w-full bg-white"><thead><tr>
+                    <th class="py-2 px-4 border-b text-left">Descrição</th>
+                    <th class="py-2 px-4 border-b text-right">Valor Devido</th>
+                    <th class="py-2 px-4 border-b text-center">Ação</th>
+                </tr></thead><tbody>`;
+                dividas.forEach(d => {
+                    const valorDevido = d[2] - d[3];
+                    table += `<tr class="hover:bg-gray-50">
+                        <td class="py-2 px-4 border-b">${d[1]}</td>
+                        <td class="py-2 px-4 border-b text-right">${formatCurrency(valorDevido)}</td>
+                        <td class="py-2 px-4 border-b text-center">
+                            <button onclick="deleteDivida(${d[0]})" class="text-red-500 hover:text-red-700 font-bold">Remover</button>
+                        </td>
+                    </tr>`;
+                });
+                table += '</tbody></table>';
+                listDiv.innerHTML = table;
+            } catch (e) { console.error("Erro ao buscar dívidas:", e); }
+        }
+
+        document.getElementById('form-divida').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const data = {
+                descricao: document.getElementById('divida-descricao').value,
+                valor_total: document.getElementById('divida-valor').value.replace(',', '.')
+            };
+            await fetch(`${API_BASE_URL}/api/divida`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            this.reset();
+            fetchDividas();
+            fetchDashboardData();
+        });
+
+        async function deleteDivida(id) {
+            if (!confirm('Tem a certeza que quer remover esta dívida?')) return;
+            await fetch(`${API_BASE_URL}/api/divida/${id}`, { method: 'DELETE' });
+            fetchDividas();
+            fetchDashboardData();
+        }
+
+        // --- Lógica de Investimentos ---
+        async function fetchInvestimentos() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/investimentos`);
+                const investimentos = await response.json();
+                const listDiv = document.getElementById('investimentos-list');
+                 if (investimentos.length === 0) {
+                    listDiv.innerHTML = '<p class="text-gray-500">Nenhum investimento encontrado.</p>';
+                    return;
+                }
+                let table = `<table class="min-w-full bg-white"><thead><tr>
+                    <th class="py-2 px-4 border-b text-left">Ativo</th>
+                    <th class="py-2 px-4 border-b text-right">Valor Atual</th>
+                    <th class="py-2 px-4 border-b text-center">Ação</th>
+                </tr></thead><tbody>`;
+                investimentos.forEach(i => {
+                    table += `<tr class="hover:bg-gray-50">
+                        <td class="py-2 px-4 border-b">${i[1]}</td>
+                        <td class="py-2 px-4 border-b text-right">${formatCurrency(i[2])}</td>
+                        <td class="py-2 px-4 border-b text-center">
+                            <button onclick="deleteInvestimento(${i[0]})" class="text-red-500 hover:text-red-700 font-bold">Remover</button>
+                        </td>
+                    </tr>`;
+                });
+                table += '</tbody></table>';
+                listDiv.innerHTML = table;
+            } catch (e) { console.error("Erro ao buscar investimentos:", e); }
+        }
+
+        document.getElementById('form-investimento').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const data = {
+                ativo: document.getElementById('invest-ativo').value,
+                valor_atual: document.getElementById('invest-valor').value.replace(',', '.')
+            };
+            await fetch(`${API_BASE_URL}/api/investimento`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            this.reset();
+            fetchInvestimentos();
+            fetchDashboardData();
+        });
+
+        async function deleteInvestimento(id) {
+            if (!confirm('Tem a certeza que quer remover este investimento?')) return;
+            await fetch(`${API_BASE_URL}/api/investimento/${id}`, { method: 'DELETE' });
+            fetchInvestimentos();
+            fetchDashboardData();
+        }
+
+        // --- Carregamento Inicial e Funções Reutilizadas ---
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchDashboardData();
+            handleTipoChange();
+        });
+
+        // O código omitido (...) é o mesmo da versão anterior para manter a resposta concisa.
+        function setConnectionStatus(status) {
+            if (status === 'connecting') { statusDiv.textContent = 'A ligar ao servidor...'; statusDiv.className = 'p-2 text-center text-white font-semibold transition-colors bg-yellow-500'; } 
+            else if (status === 'success') { statusDiv.textContent = 'Ligado com sucesso'; statusDiv.className = 'p-2 text-center text-white font-semibold transition-colors bg-green-600'; setTimeout(() => { statusDiv.style.opacity = '0'; statusDiv.style.height = '0'; statusDiv.style.padding = '0'; }, 2000); } 
+            else if (status === 'error') { statusDiv.textContent = 'Falha na ligação. Verifique se o servidor (app.py) está em execução.'; statusDiv.className = 'p-2 text-center text-white font-semibold transition-colors bg-red-600'; }
+        }
+        async function fetchDashboardData() {
+            setConnectionStatus('connecting');
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/dashboard_data`);
+                if (!response.ok) throw new Error(`HTTP status ${response.status}`);
+                const data = await response.json();
+                document.getElementById('kpi-saldo').textContent = data.saldo;
+                document.getElementById('kpi-investimentos').textContent = data.investimentos;
+                document.getElementById('kpi-dividas').textContent = data.dividas;
+                renderChart(data.chart_data);
+                setConnectionStatus('success');
+            } catch (error) { console.error("Erro de comunicação:", error); setConnectionStatus('error'); }
+        }
+        function renderChart(chartData) {
+            const ctx = document.getElementById('despesasChart').getContext('2d');
+            const noDataEl = document.getElementById('chart-no-data');
+            if (despesasChartInstance) { despesasChartInstance.destroy(); }
+            if (!chartData || chartData.data.length === 0) { noDataEl.classList.remove('hidden'); return; }
+            noDataEl.classList.add('hidden');
+            despesasChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: chartData.labels, datasets: [{ data: chartData.data, backgroundColor: ['#3b82f6', '#ef4444', '#22c55e', '#eab308', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6'], hoverOffset: 4, borderWidth: 0, }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false } } } });
+        }
+        function toggleVencimentoField() {
+            const tipo = document.querySelector('input[name="tipo"]:checked').value;
+            const vencimentoContainer = document.getElementById('vencimento-container');
+            if (tipo === 'Despesa') { vencimentoContainer.classList.remove('hidden'); } else { vencimentoContainer.classList.add('hidden'); }
+        }
+        function handleTipoChange() { updateCategorias(); toggleVencimentoField(); }
+        async function updateCategorias() {
+            const tipo = document.querySelector('input[name="tipo"]:checked').value;
+            const select = document.getElementById('categoria');
+            select.innerHTML = '<option>A carregar...</option>';
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/categorias?tipo=${tipo}`);
+                if (!response.ok) throw new Error(`HTTP status ${response.status}`);
+                const categorias = await response.json();
+                select.innerHTML = '';
+                if (categorias.length === 0) { select.innerHTML = '<option>Nenhuma categoria encontrada</option>'; return; }
+                categorias.forEach(cat => { const option = document.createElement('option'); option.value = cat[0]; option.textContent = cat[1]; select.appendChild(option); });
+            } catch (error) { console.error("Erro ao carregar categorias:", error); setConnectionStatus('error'); }
+        }
+        document.getElementById('form-transacao').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            const data = { tipo: formData.get('tipo'), descricao: formData.get('descricao'), valor: formData.get('valor').replace(',', '.'), categoria_id: formData.get('categoria'), };
+            if (data.tipo === 'Despesa' && formData.get('vencimento')) { data.data_vencimento = formData.get('vencimento'); }
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/transacao`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                if (!response.ok) throw new Error(`HTTP status ${response.status}`);
+                const result = await response.json();
+                if (result.success) { alert('Transação salva com sucesso!'); this.reset(); handleTipoChange(); showPage('page-dashboard'); } 
+                else { alert('Erro ao salvar: ' + result.message); }
+            } catch(error) { console.error("Erro de comunicação:", error); setConnectionStatus('error'); }
+        });
+
+    </script>
+</body>
+</html>
